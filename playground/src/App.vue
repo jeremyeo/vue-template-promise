@@ -1,8 +1,27 @@
 <!-- eslint-disable no-console -->
 <script setup lang="ts">
-import { useTemplatePromise } from '../../src'
+import { defineAsyncComponent } from 'vue'
+import type { TemplatePromiseStart } from '../../src/index'
+import { useTemplatePromise } from '../../src/index'
+import MyDialog from './components/MyDialog.vue'
+import type { DialogResult } from './wrappers'
 
-type DialogResult = 'ok' | 'cancel'
+type MyDialogType = InstanceType<typeof MyDialog>
+const MyDialogPromise = useTemplatePromise<MyDialogType>(MyDialog, {
+  transition: {
+    name: 'fade',
+    appear: true,
+  },
+})
+
+const AsyncDialog = defineAsyncComponent(() => import('./components/AsyncDialog.vue'))
+type AsyncDialogType = InstanceType<typeof AsyncDialog>
+const AsyncDialogPromise = useTemplatePromise<AsyncDialogType>(AsyncDialog, {
+  transition: {
+    name: 'fade',
+    appear: true,
+  },
+})
 
 const TemplatePromise = useTemplatePromise<DialogResult, [string]>({
   transition: {
@@ -11,9 +30,9 @@ const TemplatePromise = useTemplatePromise<DialogResult, [string]>({
   },
 })
 
-async function open(idx: number) {
+async function open(promise: TemplatePromiseStart<any, any>, idx: number) {
   console.log(idx, 'Before')
-  const result = await TemplatePromise.start(`Hello ${idx}`)
+  const result = await promise.start(`Hello ${idx}`)
   console.log(idx, 'After', result)
 }
 
@@ -24,20 +43,28 @@ const asyncFn = () => {
     }, 1000)
   })
 }
+
+const group = [
+  { promise: TemplatePromise, label: 'From current template: ' },
+  { promise: MyDialogPromise, label: 'From component: ' },
+  { promise: AsyncDialogPromise, label: 'From async component: ' },
+]
 </script>
 
 <template>
-  <div class="flex gap-2">
-    <button @click="open(1)">
+  <div v-for="item in group" :key="item.label" class="flex gap-2 items-center mb-2">
+    <div>{{ item.label }}</div>
+    <button @click="open(item.promise, 1)">
       Open 1
     </button>
-    <button @click="open(2)">
+    <button @click="open(item.promise, 2)">
       Open 2
     </button>
-    <button @click="open(1); open(2)">
+    <button @click="open(item.promise, 1); open(item.promise, 2)">
       Open 1 & 2
     </button>
   </div>
+
   <TemplatePromise v-slot="{ resolve, args, isResolving }">
     <div class="fixed inset-0 bg-black/10 flex items-center">
       <dialog open class="border-gray/10 shadow rounded ma">
